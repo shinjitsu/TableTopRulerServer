@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+)
+
 type TableTopRulerGame struct {
 	Players                    []Player
 	LandDeck                   []LandTile
@@ -8,6 +12,9 @@ type TableTopRulerGame struct {
 }
 
 type Player struct {
+	Name           string
+	Code           string
+	PrestigePoints int
 }
 
 type LandTile struct {
@@ -16,4 +23,8 @@ type LandTile struct {
 }
 
 type SpecialCharacter struct {
+	Name           string
+	Pict           *ebiten.Image
+	CombatValue    int
+	SpecialAbility string
 }
