@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package GameData;
+option go_package = "TableTopRulerServer/GameData";
+
+message Player {
+    string name = 1;
+    string code = 2;
+    int32 prestigePoints = 3;
+    repeated Unit standingArmy = 4;
+    repeated DomainSpot domain = 5;
+   // int32 gold repeated any hand = 7;
+}
+
+message DomainSpot {
+    LandTile land = 1;
+    Improvement upgrade = 2;
+    Fortification fortification = 3;
+}
+
+message LandTile {
+    LandType tileType = 1;
+    string tileName = 2;
+    string pict = 3;
+}
+
+message Unit {
+    string name = 1;
+    string pict = 2;
+    int32 combatValue = 3;
+    SpecialAbility specialAbility = 4;
+}
+
+message Improvement {
+    string name = 1;
+    string pict = 2;
+    int32 defenseValue = 3;
+    int32 goldValue = 4;
+}
+
+message Fortification {
+    string name = 1;
+    string pict = 2;
+    int32 defensePrestigeValue = 3;
+}
+
+enum SpecialAbility {
+    NONE = 0;
+    FLYING = 1;
+    MAGIC = 2;
+    CHARGE_BONUS = 3;
+    RANGED_ATTACK = 4;
+}
+
+enum LandType {
+    INSTRUCTION = 0;
+    FOREST = 1;
+    MOUNTAIN = 2;
+    DESERT = 3;
+    SWAMP = 4;
+    PLAINS = 5;
+}
+
+message GetPlayersRequest {
+    string name = 1;
+}
+
+message GetPlayersResponse {
+    string name = 1;
+    string code = 2;
+}
+
+message TempTurn {
+    string name = 1;
+    string code = 2;
+    string TempturnDisplayString = 3;
+   // int32 gold repeated any hand = 7;
+}
+
+message TempResponse {
+    string tempResponse = 1;
+}
+
+message tempDefend{
+    string name = 1;
+    string TempDefendDisplayString = 2;
+}
+
+message tempDefendResponse{
+    string tempResponse = 1;
+}
+
+service TableTopRulerService {
+    rpc Connect(GetPlayersRequest) returns (GetPlayersResponse) {}
+    rpc PlayTurn(TempTurn) returns (TempResponse) {}
+    rpc Defend(tempDefend) returns (tempDefendResponse) {}
+}
