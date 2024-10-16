@@ -31,7 +31,8 @@ func main() {
 	}
 	server := grpc.NewServer()
 	Game := Server{
-		Players: make([]Player, 0, 4), // 2-4 concurrent players
+		Players:       make([]Player, 0, 4),
+		PlayerStreams: make(map[string]GameData.TableTopRulerService_ReceiveGameEventsServer),
 	}
 	GameData.RegisterTableTopRulerServiceServer(server, &Game)
 	log.Println("Server listening at", listener.Addr())
