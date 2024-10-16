@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"log"
 	"net"
 )
@@ -17,8 +18,10 @@ const maxPlayers = 2 //for testing only
 type Server struct {
 	GameData.UnimplementedTableTopRulerServiceServer
 	Players       []Player
+	PlayerStreams map[string]GameData.TableTopRulerService_ReceiveGameEventsServer
 	CurrentPlayer Player
 	GameStarted   bool
+	TurnNumber    int32
 }
 
 func main() {
@@ -47,7 +50,7 @@ func (s *Server) Connect(ctx context.Context, request *GameData.GetPlayersReques
 		Name:           request.Name,
 		Code:           uuid.New().String(),
 		PrestigePoints: 0,
-		StandingArmy:   make([]Unit, 0, 4),
+		StandingArmy:   make([]*Unit, 0, 4),
 		Domain:         make([]DomainSpot, 0, 4),
 		Gold:           0,
 		Hand:           make([]any, 0, 4),
@@ -62,10 +65,27 @@ func (s *Server) Connect(ctx context.Context, request *GameData.GetPlayersReques
 	}, nil
 }
 
+func (s *Server) ReceiveGameEvents(_ *GameData.Empty, stream GameData.TableTopRulerService_ReceiveGameEventsServer) error {
+	metaData, ok := metadata.FromIncomingContext(stream.Context())
+	if !ok {
+		return errors.New("No metadata")
+	}
+	playerCode := metaData.Get("playerCode")[0]
+	if playerCode == "" {
+		return errors.New("No playerCode")
+	}
+	//might need a mutex here
+	s.PlayerStreams[playerCode] = stream
+	<-stream.Context().Done() //keep stream open
+	return nil
+}
+
 func (s *Server) PlayTurn(ctx context.Context, request *GameData.TempTurn) (*GameData.TempResponse, error) {
 	if request.Name != s.CurrentPlayer.Name {
 		return nil, errors.New("Not your turn")
 	}
+	s.TurnNumber++
+	s.BroadcastTurn()
 	//now broadcast to all players
 	return &GameData.TempResponse{
 		TempResponse: fmt.Sprintf("Turn %s played", request.Name),
@@ -80,6 +100,32 @@ func (s *Server) Defend(ctx context.Context, request *GameData.TempDefend) (*Gam
 	return &GameData.TempDefendResponse{
 		TempResponse: fmt.Sprintf("Turn %s Defended", request.Name),
 	}, nil
+}
+
+func (s *Server) BroadcastTurn() {
+	for playerCode, stream := range s.PlayerStreams {
+		if playerCode == s.CurrentPlayer.Code {
+			stream.Send(&GameData.GameState{
+				TurnNumber: s.TurnNumber,
+				Player1: &GameData.Player{
+					Name:           s.Players[0].Name,
+					PrestigePoints: s.Players[0].PrestigePoints,
+					StandingArmy:   nil, //fix - but lets see communication first
+					Domain:         nil, //fix - but lets see communication first
+				},
+
+				Player2: &GameData.Player{
+					Name:           s.Players[1].Name,
+					PrestigePoints: s.Players[1].PrestigePoints,
+					StandingArmy:   nil, //fix - but lets see communication first
+					Domain:         nil, //fix - but lets see communication first
+				},
+				Player3: nil,
+				Player4: nil,
+				Winner:  -1,
+			})
+		}
+	}
 }
 
 //func RunServer(host enet.Host, game TableTopRulerGame) {

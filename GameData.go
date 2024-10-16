@@ -26,8 +26,10 @@ const (
 )
 
 type TableTopRulerGame struct {
-	GameStarted                bool
-	Players                    []Player
+	//	GameData.UnimplementedTableTopRulerServiceServer
+	GameStarted bool
+	Players     []Player
+	//	PlayerStreams map[string]GameData.TableTopRulerService_RecieveGameEventsServer
 	LandDeck                   []LandTile
 	AvailableSpecialCharacters []SpecialCharacter
 	PlayingDeck                []any
@@ -42,10 +44,10 @@ type DomainSpot struct {
 type Player struct {
 	Name           string
 	Code           string
-	PrestigePoints int
-	StandingArmy   []Unit
+	PrestigePoints int32
+	StandingArmy   []*Unit
 	Domain         []DomainSpot
-	Gold           int
+	Gold           int32
 	Hand           []any
 }
 

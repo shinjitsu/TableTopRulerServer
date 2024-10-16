@@ -12,6 +12,21 @@ message Player {
    // int32 gold repeated any hand = 7;
 }
 
+//message GameState {
+//    int32 turnNumber = 1;
+//    repeated Player players = 2;
+//    bool winner  = 3;
+//}
+
+message GameState {
+    int32 turnNumber = 1;
+    Player player1 = 2;
+    Player player2 = 3;
+    Player player3 = 4;
+    Player player4 = 5;
+    int32 winner = 6;
+}
+
 message DomainSpot {
     LandTile land = 1;
     Improvement upgrade = 2;
@@ -90,8 +105,11 @@ message tempDefendResponse{
     string tempResponse = 1;
 }
 
+message Empty {}
+
 service TableTopRulerService {
     rpc Connect(GetPlayersRequest) returns (GetPlayersResponse) {}
     rpc PlayTurn(TempTurn) returns (TempResponse) {}
     rpc Defend(tempDefend) returns (tempDefendResponse) {}
+    rpc ReceiveGameEvents(Empty) returns (stream GameState) {}
 }
