@@ -1,4 +1,4 @@
-module TableTopRulerServer
+module github.com/shinjitsu/TableTopRulerServer
 
 go 1.23.2
 

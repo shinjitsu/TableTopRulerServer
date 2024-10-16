@@ -1,11 +1,11 @@
 package main
 
 import (
-	"TableTopRulerServer/GameData"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/shinjitsu/TableTopRulerServer/GameData"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"log"
