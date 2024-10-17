@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"log"
+	"math/rand"
 	"net"
 )
 
@@ -50,10 +51,10 @@ func (s *Server) Connect(ctx context.Context, request *GameData.GetPlayersReques
 	newPlayer := Player{
 		Name:           request.Name,
 		Code:           uuid.New().String(),
-		PrestigePoints: 0,
+		PrestigePoints: 4, //start with 4 prestige points one for each Land
 		StandingArmy:   make([]*Unit, 0, 4),
-		Domain:         make([]DomainSpot, 0, 4),
-		Gold:           0,
+		Domain:         initializeDomain(),
+		Gold:           rand.Int31n(6) + 1 + rand.Int31n(6) + 1, //roll 2D6 for starting gold
 		Hand:           make([]any, 0, 4),
 	}
 	s.Players = append(s.Players, newPlayer)

@@ -23,6 +23,7 @@ const (
 	Desert
 	Swamp
 	Plains
+	LAND_MAX
 )
 
 type TableTopRulerGame struct {
