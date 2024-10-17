@@ -59,6 +59,7 @@ func (s *Server) Connect(ctx context.Context, request *GameData.GetPlayersReques
 	s.Players = append(s.Players, newPlayer)
 	if len(s.Players) == maxPlayers {
 		s.GameStarted = true
+		s.CurrentPlayer = s.Players[0]
 	}
 	return &GameData.GetPlayersResponse{
 		Name: newPlayer.Name,
@@ -86,6 +87,19 @@ func (s *Server) PlayTurn(ctx context.Context, request *GameData.TempTurn) (*Gam
 		return nil, errors.New("Not your turn")
 	}
 	s.TurnNumber++
+	//move to next player
+	currentPlayerNum := 0
+	for loc, player := range s.Players {
+		if player.Name == s.CurrentPlayer.Name {
+			currentPlayerNum = loc
+		}
+	}
+	currentPlayerNum++
+	if currentPlayerNum >= maxPlayers {
+		currentPlayerNum = 0
+	}
+	s.CurrentPlayer = s.Players[currentPlayerNum]
+	//end move to next player
 	s.BroadcastTurn()
 	//now broadcast to all players
 	return &GameData.TempResponse{

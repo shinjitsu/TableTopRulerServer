@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
-	"image/color"
 	"log"
+	"sync"
 )
 
 //TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
@@ -22,6 +22,7 @@ type Game struct {
 	client      GameData.TableTopRulerServiceClient
 	Name        string
 	Code        string
+	lock        sync.RWMutex
 	stream      GameData.TableTopRulerService_ReceiveGameEventsClient
 	gameState   GameData.GameState
 	GameMessage string
@@ -35,27 +36,28 @@ func (g *Game) Update() error {
 			TempturnDisplayString: fmt.Sprintf("%s Playingg Turn %d", g.Name, g.gameState.TurnNumber),
 		})
 		if err != nil {
-			return err
+			g.GameMessage = "Not your Turn"
+		} else {
+			g.GameMessage = resp.TempResponse
 		}
-		g.GameMessage = resp.TempResponse
 	}
 	if g.stream == nil {
 		return nil //not ready yet
 	}
 	//ToDo: fix this Replace with go routine
-	//if gameState, err := g.stream.Recv(); err != nil {
-	//	return err
-	//} else if gameState == nil {
-	//	return nil //no more data
-	//} else {
-	//	g.gameState = *gameState
-	//	return nil
-	//}
+	if g.gameState.Player1 == nil {
+		return nil
+	}
+	g.lock.RLock()
+	g.GameMessage = fmt.Sprintf("Turn %d, Player1: %s, Player2: %s",
+		g.gameState.TurnNumber, g.gameState.Player1.Name, g.gameState.Player2.Name)
+	g.lock.RUnlock()
+	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	//TODO implement me
-	screen.Fill(color.White)
+	//screen.Fill(color.White)
 	//drawOps := ebiten.DrawImageOptions{}
 	textOpts := &text.DrawOptions{}
 	textOpts.GeoM.Translate(200, 200)
@@ -82,20 +84,36 @@ func main() {
 	gameClient.client = GameData.NewTableTopRulerServiceClient(serverConnection)
 	response, err := gameClient.client.Connect(context.Background(), &request)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("DEBUG!!!!!", err)
 	}
 	gameClient.Code = response.Code
 	metaD := metadata.New(map[string]string{"playerCode": gameClient.Code})
 	ctx := metadata.NewOutgoingContext(context.Background(), metaD)
 	gameClient.stream, err = gameClient.client.ReceiveGameEvents(ctx, &GameData.Empty{})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error Preparing to get Game events:", err)
 	}
+
+	receiveGameEvents := func(gameClient *Game) {
+		for {
+			gameState, err := gameClient.stream.Recv()
+			if err != nil {
+				log.Fatal("Error getting Game events:", err)
+			}
+			if gameState == nil {
+				return
+			}
+			gameClient.lock.Lock()
+			gameClient.gameState = *gameState
+			gameClient.lock.Unlock()
+		}
+	}
+	go receiveGameEvents(&gameClient)
 	gameClient.GameMessage = fmt.Sprintf("Start of Game %s Connected", name)
 	//dataStream, err := gameClient.client.ReceiveGameEvents(context.Background(), &GameData.Empty{})
 	//gameClient.stream = dataStream
 	if err := ebiten.RunGame(&gameClient); err != nil {
-		log.Fatal(err)
+		log.Fatal("Error running game:", err)
 	}
 }
 
