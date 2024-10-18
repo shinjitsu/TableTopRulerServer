@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/shinjitsu/TableTopRulerServer/GameData"
 )
 
 type SpecialAbility int
@@ -47,7 +48,7 @@ type Player struct {
 	Code           string
 	PrestigePoints int32
 	StandingArmy   []*Unit
-	Domain         []DomainSpot
+	Domain         []*GameData.DomainSpot
 	Gold           int32
 	Hand           []any
 }

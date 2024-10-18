@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"embed"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/shinjitsu/TableTopRulerServer/GameData"
@@ -12,8 +14,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"log"
+	"path"
 	"sync"
 )
+
+//go:embed Assets/*
+var embeddedAssets embed.FS
 
 //TIP To run your code, right-click the code and select <b>Run</b>. Alternatively, click
 // the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.
@@ -27,6 +33,13 @@ type Game struct {
 	gameState   GameData.GameState
 	GameMessage string
 }
+
+const windowWidth = 1500
+const windowHeight = 1000
+const PlayerNameHeight = 50
+const BufferSpace = 10
+
+var images map[string]*ebiten.Image
 
 func (g *Game) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
@@ -56,24 +69,82 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	//TODO implement me
-	//screen.Fill(color.White)
-	//drawOps := ebiten.DrawImageOptions{}
+
 	textOpts := &text.DrawOptions{}
 	textOpts.GeoM.Translate(200, 200)
-
+	g.lock.RLock()
+	localstate := g.gameState
+	g.lock.RUnlock()
+	drawOps := &ebiten.DrawImageOptions{}
+	DrawPlayer1(screen, localstate.Player1, drawOps)
+	DrawPlayer2(screen, localstate.Player2, drawOps)
 	text.Draw(screen, g.GameMessage, mplusNormalFace, textOpts)
+}
+
+func DrawPlayer2(screen *ebiten.Image, player2 *GameData.Player, ops *ebiten.DrawImageOptions) {
+	//player2 wll be drawn at the top
+	if player2 == nil { //if we haven't connected player2 yet
+		return
+	}
+	textOpts := &text.DrawOptions{}
+	textOpts.GeoM.Translate(windowWidth/4, 0)
+	player1Banner := fmt.Sprintf("Player: %s Prestige Points: %d Gold: %d", player2.Name, player2.PrestigePoints, player2.Gold)
+	text.Draw(screen, player1Banner, mplusNormalFace, textOpts) //DrawPlayer Name at top
+	//Draw Land
+	for spotNum, domainSpot := range player2.Domain {
+		textOpts.GeoM.Reset()
+		land := domainSpot.Land
+		image := GetImage(land.Pict)
+		if image == nil {
+			fmt.Println("Image not found!!!!!!!!:", land.TileName, land.Pict)
+		}
+		ops.GeoM.Translate(float64((spotNum)*(image.Bounds().Dx()+BufferSpace)), float64(PlayerNameHeight+BufferSpace))
+		screen.DrawImage(image, ops)
+		textOpts.GeoM.Translate(float64((spotNum)*(image.Bounds().Dx()+BufferSpace)+BufferSpace), float64(PlayerNameHeight+BufferSpace))
+		text.Draw(screen, land.TileName, mplusNormalFace, textOpts)
+		ops.GeoM.Reset()
+	}
+}
+
+func DrawPlayer1(screen *ebiten.Image, player1 *GameData.Player, ops *ebiten.DrawImageOptions) {
+	//Player1 wll be drawn at the
+	if player1 == nil { //if we haven't connected player1 yet
+		return
+	}
+	textOpts := &text.DrawOptions{}
+	textOpts.GeoM.Translate(windowWidth/4, windowHeight-PlayerNameHeight)
+	player1Banner := fmt.Sprintf("Player: %s Prestige Points: %d Gold: %d", player1.Name, player1.PrestigePoints, player1.Gold)
+	text.Draw(screen, player1Banner, mplusNormalFace, textOpts) //DrawPlayer Name at top
+
+	//Draw Land
+	for spotNum, domainSpot := range player1.Domain {
+		textOpts.GeoM.Reset()
+		land := domainSpot.Land
+		image := GetImage(land.Pict)
+		//fmt.Println(land.TileName)
+		ops.GeoM.Translate(float64((spotNum)*(image.Bounds().Dx()+BufferSpace)), float64(windowHeight-(PlayerNameHeight+image.Bounds().Dy()+BufferSpace)))
+		screen.DrawImage(image, ops)
+		textOpts.GeoM.Translate(float64((spotNum)*(image.Bounds().Dx()+BufferSpace)+BufferSpace), float64(windowHeight-(PlayerNameHeight+image.Bounds().Dy()+BufferSpace)))
+		text.Draw(screen, land.TileName, mplusNormalFace, textOpts)
+		ops.GeoM.Reset()
+	}
+}
+
+func GetImage(imageName string) *ebiten.Image {
+	if image, ok := images[imageName]; ok {
+		return image
+	}
+	image := LoadEmbeddedImage("Images", imageName)
+	images[imageName] = image
+	return image
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return outsideWidth, outsideHeight
 }
 
-const windowWidth = 1000
-const windowHeight = 1080
-
 func main() {
-
+	images = make(map[string]*ebiten.Image)
 	ebiten.SetWindowSize(windowWidth, windowHeight)
 	ebiten.SetWindowTitle("Tabletop Emperor")
 	name := getPlayerName()
@@ -84,7 +155,7 @@ func main() {
 	gameClient.client = GameData.NewTableTopRulerServiceClient(serverConnection)
 	response, err := gameClient.client.Connect(context.Background(), &request)
 	if err != nil {
-		log.Fatal("DEBUG!!!!!", err)
+		log.Fatal("Error connecting to server:", err)
 	}
 	gameClient.Code = response.Code
 	metaD := metadata.New(map[string]string{"playerCode": gameClient.Code})
@@ -149,4 +220,16 @@ func init() { //font loading needed to be in init as of 2024
 		Source: mplusFaceSource,
 		Size:   32,
 	}
+}
+
+func LoadEmbeddedImage(folderName string, imageName string) *ebiten.Image {
+	embeddedFile, err := embeddedAssets.Open(path.Join("Assets", folderName, imageName))
+	if err != nil {
+		log.Fatal("failed to load embedded image ", imageName, err)
+	}
+	ebitenImage, _, err := ebitenutil.NewImageFromReader(embeddedFile)
+	if err != nil {
+		fmt.Println("Error loading tile image:", imageName, err)
+	}
+	return ebitenImage
 }

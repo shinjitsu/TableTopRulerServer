@@ -9,7 +9,8 @@ message Player {
     int32 prestigePoints = 3;
     repeated Unit standingArmy = 4;
     repeated DomainSpot domain = 5;
-   // int32 gold repeated any hand = 7;
+    int32 Gold = 6;
+    //repeated any hand = 7;
 }
 
 //message GameState {

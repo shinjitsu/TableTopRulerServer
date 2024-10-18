@@ -119,28 +119,30 @@ func (s *Server) Defend(ctx context.Context, request *GameData.TempDefend) (*Gam
 }
 
 func (s *Server) BroadcastTurn() {
-	for playerCode, stream := range s.PlayerStreams {
-		if playerCode == s.CurrentPlayer.Code {
-			stream.Send(&GameData.GameState{
-				TurnNumber: s.TurnNumber,
-				Player1: &GameData.Player{
-					Name:           s.Players[0].Name,
-					PrestigePoints: s.Players[0].PrestigePoints,
-					StandingArmy:   nil, //fix - but lets see communication first
-					Domain:         nil, //fix - but lets see communication first
-				},
+	for _, stream := range s.PlayerStreams {
+		//if playerCode == s.CurrentPlayer.Code {
+		stream.Send(&GameData.GameState{
+			TurnNumber: s.TurnNumber,
+			Player1: &GameData.Player{
+				Name:           s.Players[0].Name,
+				PrestigePoints: s.Players[0].PrestigePoints,
+				StandingArmy:   nil,                 //fix - but lets see communication first
+				Domain:         s.Players[0].Domain, //fix - but lets see communication first
+				Gold:           s.Players[0].Gold,
+			},
 
-				Player2: &GameData.Player{
-					Name:           s.Players[1].Name,
-					PrestigePoints: s.Players[1].PrestigePoints,
-					StandingArmy:   nil, //fix - but lets see communication first
-					Domain:         nil, //fix - but lets see communication first
-				},
-				Player3: nil,
-				Player4: nil,
-				Winner:  -1,
-			})
-		}
+			Player2: &GameData.Player{
+				Name:           s.Players[1].Name,
+				PrestigePoints: s.Players[1].PrestigePoints,
+				StandingArmy:   nil, //fix - but lets see communication first
+				Domain:         s.Players[1].Domain,
+				Gold:           s.Players[1].Gold,
+			},
+			Player3: nil,
+			Player4: nil,
+			Winner:  -1,
+		})
+		//	}
 	}
 }
 
